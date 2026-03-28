@@ -22,12 +22,17 @@ const config: Config = {
           500: "#78716c", // Small UI details (initials/avatars)
         }
       },
-      // Optional: Add a subtle shadow preset for your cards
       boxShadow: {
         'card': '0 2px 8px -2px rgba(28, 25, 23, 0.08), 0 1px 3px -1px rgba(28, 25, 23, 0.04)',
+      },
+      animation: {
+        // Required for the Topic Pool shuffle button
+        'spin-fast': 'spin 0.3s linear infinite',
       }
     },
   },
-  plugins: [],
+  plugins: [
+    require("tailwindcss-animate") // 🔴 REQUIRED: Fixes the PostCSS compile crash for animations
+  ],
 };
 export default config;

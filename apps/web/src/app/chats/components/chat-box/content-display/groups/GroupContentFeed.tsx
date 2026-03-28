@@ -1,9 +1,23 @@
 "use client";
 import { Phone, Video, Info, Users } from "lucide-react";
 import ChatBubble from "../shared/ChatBubble";
+import { useChatsStore } from "@/store/chats/chats.store";
+import { useEffect, useRef } from "react";
 
 export default function GroupContentFeed({ data, onToggleInfo, isInfoOpen, onStartCall }: any) {
   const name = data?.name || "Group Chat";
+  
+  // 🔴 THE FIX: Moved `|| []` OUTSIDE
+  const messages = useChatsStore(state => state.messages[data?.id]) || [];
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#FAFAFA]">
       <div className="h-16 px-6 bg-stone-50 flex justify-between items-center shrink-0 z-10 border-b border-stone-100">
@@ -16,9 +30,11 @@ export default function GroupContentFeed({ data, onToggleInfo, isInfoOpen, onSta
           <button onClick={onToggleInfo} className={`p-2.5 rounded-xl transition-all active:scale-95 ${isInfoOpen ? 'bg-[#1c1917] text-white' : 'text-stone-400 hover:bg-stone-100 hover:text-[#1c1917]'}`}><Info size={18} strokeWidth={2.5} /></button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto no-scrollbar p-6">
-        <ChatBubble message="Group project is due tomorrow!" time="10:30 AM" isSender={false} />
-        <ChatBubble message="I'll push the final commits tonight." time="10:32 AM" isSender={true} />
+      
+      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar p-6 scroll-smooth">
+        {messages.map((msg: any) => (
+          <ChatBubble key={msg.id} message={msg.text} time={msg.time} isSender={msg.isSender} />
+        ))}
       </div>
     </div>
   );

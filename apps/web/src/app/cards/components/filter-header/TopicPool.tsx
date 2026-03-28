@@ -1,96 +1,97 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
+import { useCardsFeedStore } from "@/store/cards/cards.feed.store";
 import GridContainer from "./interest-grid/GridContainer"; 
 
-export default function TopicPool({ activeFilter, onFilterChange }: any) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [myInterests, setMyInterests] = useState(["Following", "Trending", "Technology", "Design"]);
+export default function TopicPool() {
+  const { interestPool, refreshInterestPool, activeFilter, setActiveFilter, myCards, followedCards } = useCardsFeedStore();
   
-  // 1. Ref to track the whole component (button + menu)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [myInterests, setMyInterests] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // 2. Click Outside Logic
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      // If the click is NOT inside our menuRef, close the menu
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsModalOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsModalOpen(false);
     }
-
-    if (isModalOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    if (isModalOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isModalOpen]);
 
-  const toggleInterest = (interest: string) => {
-    setMyInterests(prev => 
-      prev.includes(interest) 
-        ? prev.filter(i => i !== interest) 
-        : [...prev, interest]
-    );
+  useEffect(() => {
+    if (interestPool.length === 0) refreshInterestPool();
+  }, []);
+
+  const handleTopicSelect = (topic: string) => {
+    const isCoreTab = ["For You", "Trending", "My Cards", "Following"].includes(topic);
+    if (!isCoreTab && !myInterests.includes(topic)) {
+      setMyInterests(prev => [...prev, topic]);
+    }
+    setActiveFilter(topic);
+    setIsModalOpen(false);
+  };
+
+  const handleRemovePinned = (e: React.MouseEvent, topic: string) => {
+    e.stopPropagation();
+    setMyInterests(prev => prev.filter(t => t !== topic));
+    if (activeFilter === topic) setActiveFilter("For You"); 
   };
 
   return (
-    <div className="flex items-center w-full gap-3 py-1">
+    <div className="flex items-center w-full gap-3 py-1 relative z-20">
+      
+      {/* LEFT: HORIZONTAL PINNED TABS */}
       <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        
-        {/* Core Filter: For You */}
-        <button 
-          onClick={() => onFilterChange("For You")}
-          className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 ${
-            activeFilter === "For You" ? "bg-black text-white border-black" : "bg-white border-stone-200 text-stone-500"
-          }`}
-        >
+        <button onClick={() => setActiveFilter("For You")} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 transition-all ${activeFilter === "For You" ? "bg-black text-white border-black shadow-sm" : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"}`}>
           For You
         </button>
 
-        {/* 🔴 Core Filter: My Cards */}
-        <button 
-          onClick={() => onFilterChange("My Cards")}
-          className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 ${
-            activeFilter === "My Cards" ? "bg-black text-white border-black" : "bg-white border-stone-200 text-stone-500"
-          }`}
-        >
-          My Cards
+        <button onClick={() => setActiveFilter("Trending")} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 transition-all ${activeFilter === "Trending" ? "bg-black text-white border-black shadow-sm" : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+          Trending
         </button>
 
-        {/* Dynamic Interest Filters */}
-        {myInterests.map((topic) => (
-          <button 
-            key={topic} 
-            onClick={() => onFilterChange(topic)} 
-            className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 ${
-              activeFilter === topic ? "bg-black text-white border-black" : "bg-white border-stone-200 text-stone-500"
-            }`}
-          >
-            {topic}
+        {followedCards.length > 0 && (
+          <button onClick={() => setActiveFilter("Following")} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 transition-all ${activeFilter === "Following" ? "bg-black text-white border-black shadow-sm" : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+            Following
           </button>
-        ))}
+        )}
+
+        {myCards.length > 0 && (
+          <button onClick={() => setActiveFilter("My Cards")} className={`px-4 py-1.5 rounded-full text-[11px] font-bold border shrink-0 transition-all ${activeFilter === "My Cards" ? "bg-black text-white border-black shadow-sm" : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+            My Cards
+          </button>
+        )}
+
+        {myInterests.map((topic) => {
+          const isActive = activeFilter === topic;
+          return (
+            <button key={topic} onClick={() => setActiveFilter(topic)} className={`flex items-center gap-1.5 pl-4 pr-1.5 py-1 rounded-full text-[11px] font-bold border shrink-0 transition-all group ${isActive ? "bg-black text-white border-black shadow-sm" : "bg-white border-stone-200 text-stone-500 hover:border-stone-300"}`}>
+              <span className="mb-[1px]">{topic}</span>
+              <div onClick={(e) => handleRemovePinned(e, topic)} className={`p-1 rounded-full transition-colors ${isActive ? "hover:bg-white/20 text-white" : "hover:bg-stone-100 text-stone-400"}`}>
+                <X size={12} strokeWidth={3} />
+              </div>
+            </button>
+          )
+        })}
       </div>
 
-      {/* 3. Wrap button and container in the Ref div */}
+      {/* RIGHT: DROPDOWN TRIGGER */}
       <div className="relative shrink-0" ref={menuRef}>
         <button 
-          // 4. Toggle behavior (Click same icon to close)
           onClick={() => setIsModalOpen(!isModalOpen)}
-          className={`shrink-0 flex items-center gap-2 px-3 py-1.5 border rounded-full font-bold transition-all shadow-sm ${
-            isModalOpen 
-            ? "bg-black text-white border-black" 
-            : "bg-gradient-to-tr from-amber-50 to-orange-50 border-amber-200 text-amber-600"
-          }`}
+          className={`shrink-0 flex items-center gap-2 px-3 py-1.5 border rounded-full font-bold transition-all shadow-sm ${isModalOpen ? "bg-black text-white border-black" : "bg-gradient-to-tr from-amber-50 to-orange-50 border-amber-200 text-amber-600 hover:shadow-md"}`}
         >
           <Sparkles size={14} />
-          <span className="text-[11px]">Interests</span>
+          <span className="text-[11px] pr-1">Interests</span>
         </button>
 
+        {/* Modularized Dropdown Container */}
         <GridContainer 
           isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
-          selectedInterests={myInterests}
-          toggleInterest={toggleInterest}
+          myInterests={myInterests}
+          handleTopicSelect={handleTopicSelect} 
         />
       </div>
     </div>

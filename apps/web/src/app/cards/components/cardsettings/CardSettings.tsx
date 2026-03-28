@@ -1,214 +1,179 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Plus, Trash2, ChevronLeft, ChevronRight, Save } from "lucide-react";
+import { useState } from "react";
+import { FilePlus, LayoutGrid, ChevronRight, ArrowLeft } from "lucide-react";
 import CardEditor from "./CardEditor";
-import { getUpdatedCards } from "./updateActiveCard";
+import CardSettingsTopBar from "./cardsettingstopbar/CardSettingsTopBar";
+import CardSettingsFilterBar from "./cardsettingsfilterbar/CardSettingsFilterBar";
 
-export default function CardSettings({ initialCards, globalUser, onSave, onBack }: any) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null); 
+import { useAuthStore } from "@/store/auth/auth.store";
+import { useCardsEditorStore } from "@/store/cards/cards.editor.store";
+import { useCardsFeedStore } from "@/store/cards/cards.feed.store";
+import { useCommunitiesStore } from "@/store/communities/communities.store";
 
-  const [cards, setCards] = useState(
-    initialCards?.length > 0 ? initialCards : [
-      {
-        id: `card_${Date.now()}`,
-        bio: "Building next-gen UI/UX for Web3 startups.",
-        backMediaUrl: null,
-        channel: { name: "Sarah's Design Hub", isPublic: true },
-        interests: { primary: "Design", pool: ["Figma", "UI/UX", "Web3"] },
-        permissions: { allowChat: true, allowFullProfile: true },
-        stats: { views: 0, likes: 0, posts: 0 },
-        progress: 2,
-        wallPosts: []
-      }
-    ]
-  );
+export default function CardSettings() {
+  const { user } = useAuthStore();
+  
+  const { 
+    draftCards, activeIndex, setActiveIndex, 
+    addNewDraft, deleteDraft, setIsSettingsView, updateActiveDraft 
+  } = useCardsEditorStore();
+  
+  const { setMyCards, saveSingleCard, deleteCard } = useCardsFeedStore(); 
+  const { myChannels } = useCommunitiesStore();
 
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, index: number } | null>(null);
-  const activeCard = cards[activeIndex];
+  const [showEmptyStateChannelSelect, setShowEmptyStateChannelSelect] = useState(false);
 
-  // Global Scroll Lock
-  useEffect(() => {
-    const originalStyle = window.getComputedStyle(document.body).overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overscrollBehavior = "none";
-    
-    return () => {
-      document.body.style.overflow = originalStyle;
-      document.documentElement.style.overscrollBehavior = "auto";
-    };
-  }, []);
+  const activeCard = draftCards[activeIndex];
+  const isDeckEmpty = draftCards.length === 0;
 
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        left: scrollContainerRef.current.scrollWidth,
-        behavior: 'smooth'
-      });
+  const isValidCard = (card: any) => {
+    const name = card?.channel?.name?.trim();
+    const handle = card?.channel?.id?.trim();
+    return name && handle && name.length > 0 && handle.length > 0;
+  };
+
+  const handleSaveDeck = () => {
+    const hasInvalidCard = draftCards.some(card => !isValidCard(card));
+    if (hasInvalidCard) {
+      alert("Cannot save! Please ensure all cards have a valid Card Name and Card Handle.");
+      return; 
     }
-  }, [cards.length]);
-
-  useEffect(() => {
-    const closeMenu = () => setContextMenu(null);
-    window.addEventListener("click", closeMenu);
-    return () => window.removeEventListener("click", closeMenu);
-  }, []);
-
-  const handleRightClick = (e: React.MouseEvent, index: number) => {
-    e.preventDefault();
-    setContextMenu({ x: e.pageX, y: e.pageY, index });
+    setMyCards([...draftCards]); 
+    setIsSettingsView(false);    
   };
 
-  const scrollTabs = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 150;
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
+  const handleSaveSingleCard = (index: number) => {
+    const targetCard = draftCards[index];
+    if (!isValidCard(targetCard)) {
+      alert("Cannot save! Please ensure this card has a valid Card Name and Card Handle.");
+      return; 
     }
+    saveSingleCard(targetCard);
+    alert(`"${targetCard.channel.name || 'Card'}" saved to your deck successfully!`);
   };
 
-  const updateActiveCard = (updates: any) => {
-    const updatedCards = getUpdatedCards(cards, activeIndex, updates);
-    setCards(updatedCards);
+  const handleDeleteCard = (index: number) => {
+    const cardToDelete = draftCards[index];
+    if (!cardToDelete) return;
+    deleteCard(cardToDelete.id); 
+    deleteDraft(index);          
   };
 
-  const addNewCard = () => {
-    if (cards.length >= 9) return alert("Maximum 9 cards allowed.");
-    const newCard = {
-      id: `card_${Date.now()}`,
-      bio: "",
-      backMediaUrl: null,
-      channel: { name: "", isPublic: true },
-      interests: { primary: "", pool: [] },
-      permissions: { allowChat: true, allowFullProfile: true },
-      stats: { views: 0, likes: 0, posts: 0 },
-      progress: 1,
-      wallPosts: []
-    };
-    setCards([...cards, newCard]);
-    setActiveIndex(cards.length);
+  const handleBack = () => {
+    setIsSettingsView(false); 
   };
 
-  const deleteCardByIndex = (index: number) => {
-    if (cards.length === 1) return alert("You must have at least one card.");
-    if (!confirm("Are you sure you want to delete this card?")) return;
-    
-    const newCards = cards.filter((_: any, idx: number) => idx !== index);
-    setCards(newCards);
-    
-    // Smart Delete Shift
-    if (activeIndex === index) {
-      setActiveIndex(index === cards.length - 1 ? index - 1 : index);
-    } else if (activeIndex > index) {
-      setActiveIndex(activeIndex - 1);
-    }
-    setContextMenu(null);
-  };
+  // 🔴 THE FIX: Removed the useEffect that changed document.body.style.overflow to stop the rendering freeze!
 
   return (
-    <div className="fixed inset-y-0 right-0 left-[256px] flex flex-col items-center bg-[#FDFBF7] overflow-hidden overscroll-none p-6 pt-2 select-none z-10">
+    // 🔴 THE FIX: Consolidated animations here. Slide + Fade + High Z-Index + Shadow to make it pop.
+    <div className="fixed inset-y-0 right-0 left-[256px] flex flex-col items-center bg-[#FDFBF7] overflow-hidden p-6 pt-2 select-none z-[100] animate-in slide-in-from-right-8 fade-in duration-300 shadow-2xl">
       
-      {/* HEADER TOP BAR */}
-      <div className="flex-shrink-0 flex items-center justify-between mt-8 mb-6 px-1 w-full max-w-4xl mx-auto">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-stone-200 transition text-[#1c1917] bg-white border border-stone-200 shadow-sm active:scale-95">
-            <ArrowLeft size={16} strokeWidth={2.5} />
-          </button>
-          <h1 className="text-[19px] font-black text-[#1c1917] tracking-tight leading-none">
-            Card Deck Manager
-          </h1>
-        </div>
-      </div>
+      <CardSettingsTopBar onBack={handleBack} onSave={handleSaveDeck} isEmpty={isDeckEmpty} />
+      
+      {isDeckEmpty ? (
+        
+        <div className="flex-1 w-full flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-300 pb-20">
+          <div className="flex flex-col items-center max-w-sm w-full gap-8">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-black text-[#1c1917] tracking-tight">Your Deck is Empty</h2>
+              <p className="text-[13px] font-medium text-stone-500">Create a blank identity or link one of your existing communities to get started.</p>
+            </div>
 
-      {/* TABS FILTER BAR */}
-      <div className="flex-shrink-0 flex items-center gap-2 mb-4 h-14 p-1.5 bg-white border border-stone-200/60 rounded-2xl shadow-sm w-full max-w-4xl mx-auto">
-        <div className="flex items-center flex-1 min-w-0 bg-stone-50/50 rounded-xl px-1 relative h-full">
-          <button onClick={() => scrollTabs('left')} className="p-1 hover:bg-white rounded-lg text-stone-400 shrink-0 transition-colors">
-            <ChevronLeft size={14} strokeWidth={3} />
-          </button>
-
-          <div ref={scrollContainerRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1 scroll-smooth flex-1">
-            {cards.map((c: any, idx: number) => (
-              <div key={c.id} className="flex flex-col gap-1 min-w-[110px] max-w-[140px] shrink-0">
+            {!showEmptyStateChannelSelect ? (
+              <div className="flex flex-col gap-3 w-full">
                 <button 
-                  onClick={() => setActiveIndex(idx)}
-                  onContextMenu={(e) => handleRightClick(e, idx)}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all border truncate block w-full text-center tracking-wider ${
-                    activeIndex === idx ? "bg-black text-white border-black shadow-md" : "bg-white border-stone-200 text-stone-400 hover:border-stone-400"
-                  }`}
+                  onClick={() => addNewDraft(user)} 
+                  className="group flex items-center p-4 bg-white border border-stone-200 rounded-2xl hover:border-black hover:shadow-md transition-all text-left"
                 >
-                  {c.channel.name || `Card ${idx + 1}`}
+                  <div className="h-12 w-12 bg-stone-100 rounded-xl flex items-center justify-center group-hover:bg-[#1c1917] group-hover:text-white transition-colors text-stone-600 mr-4 shrink-0">
+                    <FilePlus size={22} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-[14px] font-black text-[#1c1917]">Create Blank Card</h3>
+                    <p className="text-[11px] font-bold text-stone-400 mt-0.5">Start entirely from scratch</p>
+                  </div>
+                  <ChevronRight size={18} className="text-stone-300 group-hover:text-[#1c1917] transition-colors" />
                 </button>
-                <div className="flex gap-0.5 px-1 h-[2px] w-full">
-                  <div className={`flex-1 rounded-full ${c.progress >= 1 ? (activeIndex === idx ? 'bg-black' : 'bg-stone-400') : 'bg-stone-200'}`} />
-                  <div className={`flex-1 rounded-full ${c.progress >= 2 ? (activeIndex === idx ? 'bg-black' : 'bg-stone-400') : 'bg-stone-200'}`} />
-                  <div className={`flex-1 rounded-full ${c.progress >= 3 ? (activeIndex === idx ? 'bg-black' : 'bg-stone-400') : 'bg-stone-200'}`} />
-                  <div className={`flex-1 rounded-full ${c.progress >= 4 ? (activeIndex === idx ? 'bg-black' : 'bg-stone-400') : 'bg-stone-200'}`} />
-                  <div className={`flex-1 rounded-full ${c.progress >= 5 ? (activeIndex === idx ? 'bg-black' : 'bg-stone-400') : 'bg-stone-200'}`} />
+
+                <button 
+                  onClick={() => setShowEmptyStateChannelSelect(true)} 
+                  className="group flex items-center p-4 bg-white border border-stone-200 rounded-2xl hover:border-black hover:shadow-md transition-all text-left"
+                >
+                  <div className="h-12 w-12 bg-stone-100 rounded-xl flex items-center justify-center group-hover:bg-[#1c1917] group-hover:text-white transition-colors text-stone-600 mr-4 shrink-0">
+                    <LayoutGrid size={22} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-[14px] font-black text-[#1c1917]">Link Existing Channel</h3>
+                    <p className="text-[11px] font-bold text-stone-400 mt-0.5">Import an active community</p>
+                  </div>
+                  <ChevronRight size={18} className="text-stone-300 group-hover:text-[#1c1917] transition-colors" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col w-full animate-in slide-in-from-right-8 duration-200">
+                <button 
+                  onClick={() => setShowEmptyStateChannelSelect(false)} 
+                  className="text-[11px] font-black uppercase tracking-widest text-stone-400 hover:text-black self-start flex items-center gap-1.5 mb-4 px-2 py-1 -ml-2 rounded-lg hover:bg-stone-100 transition-colors"
+                >
+                  <ArrowLeft size={14} strokeWidth={3} /> Back
+                </button>
+                
+                <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="bg-stone-50 border-b border-stone-100 px-4 py-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Select a Channel</span>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto no-scrollbar flex flex-col p-2 gap-1 w-full">
+                    {myChannels.length === 0 ? (
+                      <div className="text-center py-8 text-[12px] font-bold text-stone-400">No channels available.</div>
+                    ) : (
+                      myChannels.map(channel => (
+                        <button 
+                          key={channel.id} 
+                          onClick={() => { 
+                            addNewDraft(user, channel); 
+                            setShowEmptyStateChannelSelect(false); 
+                          }} 
+                          className="flex items-center p-3 rounded-xl hover:bg-stone-100 border border-transparent hover:border-stone-200 transition-colors text-left group"
+                        >
+                          <div className="flex-1 min-w-0 pr-4">
+                            <h3 className="text-[13px] font-bold text-[#1c1917] truncate">{channel.name}</h3>
+                            <p className="text-[11px] font-semibold text-stone-400 mt-0.5 truncate">{channel.handle}</p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <button onClick={() => scrollTabs('right')} className="p-1 hover:bg-white rounded-lg text-stone-400 shrink-0 transition-colors">
-            <ChevronRight size={14} strokeWidth={3} />
-          </button>
-
-          <div className="pl-1 pr-1 border-l border-stone-200/50 ml-1 shrink-0 h-8 flex items-center">
-            <button 
-                onClick={addNewCard} 
-                disabled={cards.length >= 9}
-                className="h-full px-3 rounded-lg border-2 border-dashed border-stone-300 text-stone-400 hover:text-black hover:border-black transition-all flex items-center gap-1.5 text-[9px] font-black uppercase bg-white disabled:opacity-30"
-            >
-                <Plus size={12} strokeWidth={3} /> Add
-            </button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 px-3 shrink-0 border-l border-stone-200/60 ml-1">
-          <div className="flex flex-col items-center">
-             <span className="text-[7px] font-black text-stone-400 uppercase leading-none mb-1 tracking-tighter whitespace-nowrap">
-                My Cards {cards.length}/9
-             </span>
-             <div className="text-[11px] font-black text-[#1c1917] bg-white border-2 border-black px-2.5 py-1 rounded-md shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)]">
-               MC
-            </div>
+      ) : (
+
+        <>
+          <CardSettingsFilterBar 
+            cards={draftCards} 
+            activeIndex={activeIndex} 
+            setActiveIndex={setActiveIndex} 
+            onAdd={(existingChannel: any) => addNewDraft(user, existingChannel)} 
+            onDelete={handleDeleteCard} 
+            onSaveSingleCard={handleSaveSingleCard} 
+          />
+          
+          <div className="flex-1 w-full max-w-4xl mx-auto overflow-hidden">
+            {activeCard && (
+              <CardEditor 
+                user={user} 
+                card={activeCard} 
+                updateCard={updateActiveDraft} 
+                onDelete={() => handleDeleteCard(activeIndex)} 
+              />
+            )}
           </div>
-        </div>
-      </div>
-
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 w-full max-w-4xl mx-auto overflow-hidden animate-in fade-in duration-200">
-        <CardEditor 
-          user={globalUser} 
-          card={activeCard} 
-          updateCard={updateActiveCard} 
-          onDelete={() => deleteCardByIndex(activeIndex)} 
-        />
-      </div>
-
-      {/* CONTEXT MENU */}
-      {contextMenu && (
-        <div 
-          className="fixed z-[999] bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-1 w-40"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button 
-            onClick={() => { onSave(cards); setContextMenu(null); }} 
-            className="w-full text-left px-3 py-2 text-[10px] font-black uppercase hover:bg-stone-50 flex items-center gap-2"
-          >
-            <Save size={14} strokeWidth={2.5} /> Save Card
-          </button>
-          <button 
-            onClick={() => deleteCardByIndex(contextMenu.index)} 
-            className="w-full text-left px-3 py-2 text-[10px] font-black uppercase text-red-600 hover:bg-red-50 flex items-center gap-2 border-t border-stone-100"
-          >
-            <Trash2 size={14} strokeWidth={2.5} /> Delete Card
-          </button>
-        </div>
+        </>
       )}
     </div>
   );

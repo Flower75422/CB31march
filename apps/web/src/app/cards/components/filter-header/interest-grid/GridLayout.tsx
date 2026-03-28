@@ -1,61 +1,37 @@
 "use client";
-import { Check } from "lucide-react";
-import { ALL_INTERESTS_600 } from "./GridData";
 
-export default function GridLayout({ selectedInterests, toggleInterest }: any) {
-  const itemsPerUnit = 24; 
-  const units = [];
-  
-  for (let i = 0; i < ALL_INTERESTS_600.length; i += itemsPerUnit) {
-    units.push(ALL_INTERESTS_600.slice(i, i + itemsPerUnit));
-  }
+import { useCardsFeedStore } from "@/store/cards/cards.feed.store";
+
+export default function GridLayout({ isAnimating, myInterests, handleTopicSelect }: any) {
+  const { interestPool, activeFilter } = useCardsFeedStore();
 
   return (
-    <div className="h-full w-full overflow-y-auto no-scrollbar scroll-smooth bg-white p-2">
-      <div className="flex flex-col gap-5 pb-10">
-        {units.map((unitItems, uIdx) => (
-          <div key={uIdx} className="flex flex-col gap-3">
-            
-            {/* 🔴 MASONRY FLOW: Uses flex-grow to fill all empty space */}
-            <div className="flex flex-wrap gap-1 items-stretch">
-              {unitItems.map((interest) => {
-                const isSelected = selectedInterests.includes(interest);
-                
-                return (
-                  <button
-                    key={interest}
-                    onClick={() => toggleInterest(interest)}
-                    // // flex-grow: 1 makes short words stretch to fill gaps
-                    // // min-width: calculated so words don't get too squished
-                    className={`
-                      flex-grow flex items-center justify-center gap-1
-                      px-2 py-1 text-[8px] font-black uppercase border border-black 
-                      transition-all duration-75 active:scale-95 min-w-[40px]
-                      ${isSelected ? "bg-black text-white" : "bg-white text-black hover:bg-stone-100"}
-                    `}
-                    style={{ 
-                      // // Subtle logic: longer words get more "weight" in the row
-                      flexBasis: `${interest.length * 6}px` 
-                    }}
-                  >
-                    {interest}
-                    {isSelected && <Check size={7} strokeWidth={4} />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* UNIT SEPARATOR */}
-            {uIdx !== units.length - 1 && (
-              <div className="flex items-center gap-2 mt-2">
-                <div className="h-[1.5px] flex-1 bg-black" />
-                <span className="text-[8px] font-black text-black">UNTI {uIdx + 1}</span>
-                <div className="h-[1.5px] w-6 bg-black" />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+    <div 
+      className={`flex flex-wrap gap-2 w-full max-h-[220px] overflow-y-auto no-scrollbar py-1 transition-opacity duration-300 ${isAnimating ? "opacity-0" : "opacity-100"}`}
+    >
+      {interestPool.map((topic: string, index: number) => {
+        const isCoreTab = ["For You", "Trending", "My Cards", "Following"].includes(topic);
+        const isAlreadyPinned = myInterests.includes(topic) || activeFilter === topic || isCoreTab;
+        
+        return (
+          <button
+            key={`${topic}-${index}`} 
+            onClick={() => handleTopicSelect(topic)}
+            className={`
+              px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-tight transition-all border shadow-sm
+              animate-in fade-in zoom-in-95 duration-300
+              ${isAlreadyPinned 
+                ? "bg-stone-100 text-stone-400 border-stone-200 opacity-60 cursor-not-allowed" 
+                : "bg-white text-[#1c1917] border-stone-200 hover:border-black hover:shadow-md"
+              }
+            `}
+            style={{ animationDelay: `${index * 5}ms` }} 
+            disabled={isAlreadyPinned} 
+          >
+            {topic}
+          </button>
+        );
+      })}
     </div>
   );
 }

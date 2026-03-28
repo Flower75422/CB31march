@@ -1,27 +1,30 @@
 "use client";
-import ChannelGrid from "@/app/communities/components/display/channels/ChannelGrid";
 import { useRouter } from "next/navigation";
+import { useProfileStore } from "@/store/profile/profile.store";
+import EmptyCommunityState from "../../EmptyCommunityState";
+// 🔴 Pointing to the new local file we just created!
+import ProfileChannelCard from "./ProfileChannelCard"; 
 
 export default function ControllerChannel() {
   const router = useRouter();
+  const { channels } = useProfileStore();
 
-  const handleCreateNew = () => {
-    // Navigate to communities page to open the create flow
-    // or you can trigger a local state if the controller is available here
-    router.push("/communities"); 
-  };
+  if (!channels || channels.length === 0) {
+    return <EmptyCommunityState type="channel" onCreate={() => router.push("/communities")} />;
+  }
 
   return (
     <div className="w-full">
-      <div className="-ml-4 animate-in fade-in slide-in-from-bottom-3 duration-700"> 
-        {/* We pass the filter 'my_channels'. 
-          Inside ChannelGrid, if the result is empty, it will now 
-          render the EmptyCommunityState we built.
-        */}
-        <ChannelGrid 
-          filter="my_channels" 
-          onCreateRequest={handleCreateNew} 
-        />
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-700"> 
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
+          {channels.map((channel) => (
+            <ProfileChannelCard 
+              key={channel.id} 
+              channel={channel} 
+              onOpenChat={() => router.push("/chats")} 
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

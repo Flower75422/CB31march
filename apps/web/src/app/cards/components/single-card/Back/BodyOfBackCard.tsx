@@ -1,10 +1,10 @@
-// apps/web/src/app/cards/components/single-card/back/BodyOfBackCard.tsx
+// apps/web/src/app/cards/components/single-card/back/BodyOfBackCard.ts
+"use client";
+
 import { Play } from "lucide-react";
 
 export default function BodyOfBackCard({ mediaUrl, mediaType = "image" }: any) {
   return (
-    /* h-[120px] allows the media to occupy the majority of the back card.
-       It fills the space used by the Front's avatar, bio, and status. */
     <div className="w-full h-[120px] bg-gray-50 rounded-xl overflow-hidden relative group border border-gray-100 flex items-center justify-center">
       {mediaUrl ? (
         <div className="w-full h-full">
@@ -22,8 +22,8 @@ export default function BodyOfBackCard({ mediaUrl, mediaType = "image" }: any) {
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center opacity-20">
-          <span className="text-[9px] font-bold text-gray-400 uppercase">Preview Mode</span>
+        <div className="flex flex-col items-center opacity-40">
+          <span className="text-[9px] font-bold text-gray-500 uppercase">No Media Attached</span>
         </div>
       )}
     </div>
